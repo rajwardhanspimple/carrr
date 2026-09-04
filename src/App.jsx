@@ -15,6 +15,7 @@ export default function App() {
   const [paint, setPaint] = useState(() => localStorage.getItem("vr_paint") || "");
   const [theme, setTheme] = useState(() => localStorage.getItem("vr_theme") || "sunset");
   const [quality, setQuality] = useState(() => localStorage.getItem("vr_quality") || "high");
+  const [difficulty, setDifficulty] = useState(() => localStorage.getItem("vr_difficulty") || "normal");
   const [raceId, setRaceId] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -28,6 +29,7 @@ export default function App() {
   useEffect(() => localStorage.setItem("vr_paint", paint), [paint]);
   useEffect(() => localStorage.setItem("vr_theme", theme), [theme]);
   useEffect(() => localStorage.setItem("vr_quality", quality), [quality]);
+  useEffect(() => localStorage.setItem("vr_difficulty", difficulty), [difficulty]);
 
   const ensureAudio = () => {
     audio.init();
@@ -38,7 +40,7 @@ export default function App() {
     (overrideCar) => {
       ensureAudio();
       const c = overrideCar || getCar(carId);
-      resetGame(c);
+      resetGame(c, difficulty);
       initEntities(c);
       game.status = "countdown";
       emit();
@@ -47,7 +49,7 @@ export default function App() {
       setScreen("race");
       setCountdown(3);
     },
-    [carId]
+    [carId, difficulty]
   );
 
   // countdown ticker
@@ -139,6 +141,8 @@ export default function App() {
           setTheme={setTheme}
           quality={quality}
           setQuality={setQuality}
+          difficulty={difficulty}
+          setDifficulty={setDifficulty}
           onStart={() => startRace()}
           onBack={goMenu}
         />

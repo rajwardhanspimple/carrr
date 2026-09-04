@@ -5,6 +5,7 @@ import * as THREE from "three";
 import CarModel from "../game/CarModel.jsx";
 import { CARS, PAINTS } from "../game/cars.js";
 import { THEMES } from "../game/World.jsx";
+import { DIFFICULTIES } from "../game/store.js";
 
 function Turntable({ car, color }) {
   const ref = useRef();
@@ -76,7 +77,7 @@ function Stat({ label, value }) {
   );
 }
 
-export default function Garage({ carId, setCarId, paint, setPaint, theme, setTheme, quality, setQuality, onStart, onBack }) {
+export default function Garage({ carId, setCarId, paint, setPaint, theme, setTheme, quality, setQuality, difficulty, setDifficulty, onStart, onBack }) {
   const car = CARS.find((c) => c.id === carId) || CARS[0];
   const idx = CARS.indexOf(car);
   const prev = () => setCarId(CARS[(idx - 1 + CARS.length) % CARS.length].id);
@@ -212,6 +213,24 @@ export default function Garage({ carId, setCarId, paint, setPaint, theme, setThe
                       }`}
                     >
                       {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.3em] text-white/50 mb-2">Difficulty</div>
+                <div className="flex gap-2">
+                  {Object.entries(DIFFICULTIES).map(([k, v]) => (
+                    <button
+                      key={k}
+                      onClick={() => setDifficulty(k)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-display border transition ${
+                        difficulty === k
+                          ? "border-rose-400 bg-rose-400/20 text-rose-200"
+                          : "border-white/10 bg-white/5 text-white/60 hover:border-white/30"
+                      }`}
+                    >
+                      {v.label}
                     </button>
                   ))}
                 </div>

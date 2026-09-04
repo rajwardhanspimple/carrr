@@ -35,8 +35,8 @@ export function MainMenu({ onGarage, onQuickPlay, best }) {
           <span className="text-white/90 tracking-[0.3em]">RUSH</span>
         </h1>
         <p className="mt-5 text-white/60 max-w-md mx-auto text-sm md:text-base">
-          {CARS.length} vehicles. Hypercars, muscle, F1, monster trucks, buses and more. Weave through traffic, chain near-misses,
-          and burn nitro.
+          {CARS.length} vehicles. Dodge lane-changing traffic and road hazards, hit ramps for stunts, grab boost pads, run stages,
+          and burn nitro with near-misses.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
@@ -73,9 +73,12 @@ export function MainMenu({ onGarage, onQuickPlay, best }) {
 export function GameOver({ g, car, onRetry, onGarage, onMenu }) {
   const isBest = Math.floor(g.score) >= g.best && g.best > 0;
   const rows = [
+    ["Stage", `Stage ${g.level}`],
     ["Distance", `${(g.distance / 1000).toFixed(2)} km`],
     ["Coins", g.coins],
     ["Near Misses", g.nearMisses],
+    ["Stunts", g.stunts],
+    ["Cones Smashed", g.cones],
     ["Top Speed", `${Math.round(g.maxSpeed * 1.45 * 3.2)} km/h`],
     ["Vehicle", car.name],
   ];

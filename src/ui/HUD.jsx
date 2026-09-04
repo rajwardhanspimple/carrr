@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { game, subscribe } from "../game/store.js";
+import { game, subscribe, STAGE_LEN } from "../game/store.js";
 import { setInput } from "../game/input.js";
 
 export function useGameSnapshot() {
@@ -127,6 +127,41 @@ export default function HUD({ onPause, muted, toggleMute }) {
         </div>
       </div>
 
+      {/* Stage progress */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-44 md:w-64 panel rounded-xl px-3 py-2 md:px-4 md:py-2.5 text-center">
+        <div className="text-[10px] uppercase tracking-[0.3em] text-cyan-300/80">
+          Stage {g.level}
+        </div>
+        <div className="h-1.5 mt-1 rounded-full bg-white/10 overflow-hidden border border-white/10">
+          <div
+            className="h-full rounded-full transition-[width] duration-150"
+            style={{
+              width: `${Math.min(100, (g.stageProgress / STAGE_LEN) * 100)}%`,
+              background: "linear-gradient(90deg,#22d3ee,#a78bfa)",
+              boxShadow: "0 0 10px rgba(34,211,238,0.7)",
+            }}
+          />
+        </div>
+        <div className="mt-1 text-[10px] uppercase tracking-widest text-white/50">
+          {Math.floor(g.stageProgress)} / {STAGE_LEN} m
+        </div>
+      </div>
+
+      {/* Shield indicator */}
+      {g.shields > 0 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 translate-y-16 md:translate-y-20 flex gap-1 justify-center">
+          {Array.from({ length: g.shields }).map((_, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-md bg-sky-400/20 border border-sky-300/60 text-sky-200 flex items-center justify-center text-xs"
+              style={{ boxShadow: "0 0 12px rgba(56,189,248,0.6)" }}
+            >
+              ⛨
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Top-right: buttons */}
       <div className="absolute top-4 right-4 md:top-6 md:right-6 flex gap-2 pointer-events-auto">
         <button onClick={toggleMute} className="ghost-btn w-10 h-10 rounded-md text-sm">
@@ -158,13 +193,19 @@ export default function HUD({ onPause, muted, toggleMute }) {
       </div>
 
       {/* Bottom-left: bars */}
-      <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 space-y-3">
+      <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 space-y-2 md:space-y-3">
         <Bar label="Health" value={g.health} color={hpColor} glow="rgba(34,197,94,0.6)" />
         <Bar
           label={g.nitroActive ? "Nitro ▶▶" : "Nitro (Shift)"}
           value={g.nitro}
           color="linear-gradient(90deg,#3b82f6,#93c5fd)"
           glow="rgba(59,130,246,0.7)"
+        />
+        <Bar
+          label={g.boostActive ? "Boost ▶▶" : "Boost Pad"}
+          value={(g.boostTimer / 2.4) * 100}
+          color="linear-gradient(90deg,#38bdf8,#e0f2fe)"
+          glow="rgba(56,189,248,0.7)"
         />
       </div>
 
@@ -175,6 +216,8 @@ export default function HUD({ onPause, muted, toggleMute }) {
           <br />↑ boost · ↓ brake
           <br />
           shift nitro · C camera
+          <br />
+          ramps jump · pads boost
         </div>
         <Speedometer speed={g.speed} max={g.maxSpeed} nitroActive={g.nitroActive} />
       </div>
