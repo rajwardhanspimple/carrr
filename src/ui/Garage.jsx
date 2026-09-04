@@ -1,8 +1,9 @@
 import { Suspense, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, Environment, Lightformer, MeshReflectorMaterial, OrbitControls } from "@react-three/drei";
+import { ContactShadows, MeshReflectorMaterial, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import CarModel from "../game/CarModel.jsx";
+import StudioEnvironment from "../game/StudioEnvironment.jsx";
 import { CARS, PAINTS } from "../game/cars.js";
 import { THEMES } from "../game/World.jsx";
 import { DIFFICULTIES } from "../game/store.js";
@@ -61,14 +62,8 @@ function Showroom({ car, color }) {
       <group scale={scale}>
         <Turntable car={car} color={color} />
       </group>
-      <ContactShadows position={[0, 0.02, 0]} opacity={0.8} scale={16} blur={2.4} far={6} resolution={512} />
-      <Environment resolution={256} frames={1}>
-        <Lightformer intensity={4} rotation-x={Math.PI / 2} position={[0, 7, 0]} scale={[14, 14, 1]} />
-        <Lightformer intensity={2.5} rotation-y={Math.PI / 2} position={[-6, 2, 0]} scale={[9, 4, 1]} color="#00e5ff" />
-        <Lightformer intensity={2.5} rotation-y={-Math.PI / 2} position={[6, 2, 0]} scale={[9, 4, 1]} color="#a855f7" />
-        <Lightformer intensity={1.5} rotation-x={Math.PI / 2} position={[0, 2, 8]} scale={[10, 4, 1]} color="#ffffff" />
-        <Lightformer intensity={1} position={[0, 2, -8]} scale={[12, 2, 1]} color="#ffffff" />
-      </Environment>
+      <ContactShadows position={[0, 0.02, 0]} opacity={0.85} scale={16} blur={2.6} far={6} resolution={1024} />
+      <StudioEnvironment intensity={1.25} />
       <OrbitControls
         enablePan={false}
         enableZoom={false}

@@ -33,32 +33,33 @@ export function useCarMaterials(color, opts = {}) {
   return useMemo(() => {
     const paint = new THREE.MeshPhysicalMaterial({
       color,
-      metalness: 0.2,
-      roughness: 0.42,
+      metalness: 0.15,
+      roughness: 0.46,
       roughnessMap: flake,
       clearcoat: 1,
-      clearcoatRoughness: 0.05,
-      sheen: 0.35,
-      sheenRoughness: 0.5,
-      envMapIntensity: 1.9,
+      clearcoatRoughness: 0.03,
+      sheen: 0.45,
+      sheenRoughness: 0.45,
+      ior: 1.5,
+      envMapIntensity: 2.35,
     });
     const paint2 = new THREE.MeshPhysicalMaterial({
       color: opts.accent || "#0f172a",
-      metalness: 0.5,
-      roughness: 0.24,
-      clearcoat: 0.9,
-      clearcoatRoughness: 0.12,
-      envMapIntensity: 1.5,
+      metalness: 0.55,
+      roughness: 0.22,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+      envMapIntensity: 1.9,
     });
     const glass = new THREE.MeshPhysicalMaterial({
       color: "#0d1522",
       metalness: 0,
-      roughness: 0.06,
+      roughness: 0.04,
       clearcoat: 1,
-      clearcoatRoughness: 0.08,
+      clearcoatRoughness: 0.05,
       transparent: true,
-      opacity: 0.55,
-      envMapIntensity: 2.4,
+      opacity: 0.5,
+      envMapIntensity: 2.8,
       side: THREE.DoubleSide,
     });
     const dark = new THREE.MeshStandardMaterial({ color: "#0b0f19", metalness: 0.45, roughness: 0.52 });
@@ -170,10 +171,23 @@ function makeCoupeCanopyGeo(width, waist) {
   return geo;
 }
 
+function FenderTrim({ x, z, r, mats }) {
+  return (
+    <>
+      <mesh position={[-x, 0.02, z]} rotation-y={Math.PI / 2} material={mats.dark}>
+        <torusGeometry args={[r + 0.05, 0.05, 6, 24, Math.PI]} />
+      </mesh>
+      <mesh position={[x, 0.02, z]} rotation-y={Math.PI / 2} material={mats.dark}>
+        <torusGeometry args={[r + 0.05, 0.05, 6, 24, Math.PI]} />
+      </mesh>
+    </>
+  );
+}
+
 function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
-  const p = variant === "muscle" ? { len: 4.95, width: 2.12, waist: 1.05, r: 0.4, x: 1.02, wing: "duck" }
-    : variant === "hyper" ? { len: 4.75, width: 2.06, waist: 1.0, r: 0.37, x: 0.96, wing: "big" }
-    : { len: 4.75, width: 2.0, waist: 1.02, r: 0.38, x: 0.95, wing: "small" };
+  const p = variant === "muscle" ? { len: 4.95, width: 2.12, waist: 1.05, r: 0.42, x: 1.04, wing: "duck" }
+    : variant === "hyper" ? { len: 4.78, width: 2.06, waist: 1.0, r: 0.4, x: 0.99, wing: "big" }
+    : { len: 4.75, width: 2.0, waist: 1.02, r: 0.4, x: 0.97, wing: "small" };
   const bodyGeo = useMemo(() => makeCoupeBodyGeo(p.len, p.width, p.waist), [p.len, p.width, p.waist]);
   const canopyGeo = useMemo(() => makeCoupeCanopyGeo(p.width, p.waist), [p.width, p.waist]);
   const h = p.len / 2;
@@ -182,8 +196,18 @@ function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
 
   return (
     <>
+      {/* underbody tub – grounds the car and hides gaps */}
+      <RB args={[p.width * 0.86, 0.18, p.len * 0.82]} position={[0, 0.2, 0]} material={mats.carbon} radius={0.05} />
       {/* sculpted painted body */}
       <mesh geometry={bodyGeo} material={mats.paint} castShadow receiveShadow />
+      {/* rear + front fender haunches */}
+      <RB args={[0.06, 0.52, 1.4]} position={[-p.width / 2 + 0.01, 0.78, zr + 0.1]} material={mats.paint} radius={0.025} />
+      <RB args={[0.06, 0.52, 1.4]} position={[p.width / 2 - 0.01, 0.78, zr + 0.1]} material={mats.paint} radius={0.025} />
+      <RB args={[0.06, 0.5, 1.25]} position={[-p.width / 2 + 0.01, 0.72, zf + 0.05]} material={mats.paint} radius={0.025} />
+      <RB args={[0.06, 0.5, 1.25]} position={[p.width / 2 - 0.01, 0.72, zf + 0.05]} material={mats.paint} radius={0.025} />
+      {/* wheel arch lips */}
+      <FenderTrim x={p.width / 2 - 0.02} z={zf} r={p.r} mats={mats} />
+      <FenderTrim x={p.width / 2 - 0.02} z={zr} r={p.r} mats={mats} />
       {/* glasshouse */}
       <mesh geometry={canopyGeo} material={mats.glass} castShadow />
       {/* roof skin */}
@@ -194,6 +218,9 @@ function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
       ) : (
         <RB args={[0.66, 0.1, 0.9]} position={[0, p.waist + 0.02, -1.35]} material={mats.carbon} radius={0.04} />
       )}
+      {/* hood vents */}
+      <Box args={[0.3, 0.03, 0.5]} position={[-0.45, p.waist + 0.02, -1.5]} material={mats.dark} castShadow={false} />
+      <Box args={[0.3, 0.03, 0.5]} position={[0.45, p.waist + 0.02, -1.5]} material={mats.dark} castShadow={false} />
       {/* splitter */}
       <RB args={[p.width * 0.9, 0.08, 0.36]} position={[0, 0.26, -h + 0.08]} material={mats.carbon} radius={0.03} />
       {/* front grille + mesh */}
@@ -202,15 +229,19 @@ function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
         <planeGeometry args={[p.width * 0.58, 0.18]} />
         <meshStandardMaterial color="#05070a" roughness={0.6} metalness={0.4} />
       </mesh>
+      {/* lower intake + fog vents */}
+      <RB args={[p.width * 0.5, 0.16, 0.08]} position={[0, 0.4, -h - 0.01]} material={mats.dark} radius={0.02} />
+      <Box args={[0.26, 0.16, 0.08]} position={[-p.width * 0.38, 0.4, -h - 0.01]} material={mats.dark} />
+      <Box args={[0.26, 0.16, 0.08]} position={[p.width * 0.38, 0.4, -h - 0.01]} material={mats.dark} />
       {/* slim LED headlights */}
       <Box args={[0.46, 0.07, 0.06]} position={[-p.width * 0.32, p.waist - 0.14, -h + 0.06]} material={mats.headlight} castShadow={false} />
       <Box args={[0.46, 0.07, 0.06]} position={[p.width * 0.32, p.waist - 0.14, -h + 0.06]} material={mats.headlight} castShadow={false} />
       {/* side intakes */}
-      <Box args={[0.08, 0.22, 0.5]} position={[-p.width / 2 + 0.02, 0.55, -1.35]} material={mats.dark} />
-      <Box args={[0.08, 0.22, 0.5]} position={[p.width / 2 - 0.02, 0.55, -1.35]} material={mats.dark} />
+      <Box args={[0.08, 0.24, 0.5]} position={[-p.width / 2 + 0.02, 0.58, -1.35]} material={mats.dark} />
+      <Box args={[0.08, 0.24, 0.5]} position={[p.width / 2 - 0.02, 0.58, -1.35]} material={mats.dark} />
       {/* rocker panels */}
-      <Box args={[0.06, 0.12, p.len * 0.62]} position={[-p.width / 2 + 0.02, 0.33, 0]} material={mats.carbon} />
-      <Box args={[0.06, 0.12, p.len * 0.62]} position={[p.width / 2 - 0.02, 0.33, 0]} material={mats.carbon} />
+      <Box args={[0.07, 0.12, p.len * 0.62]} position={[-p.width / 2 + 0.02, 0.33, 0]} material={mats.carbon} />
+      <Box args={[0.07, 0.12, p.len * 0.62]} position={[p.width / 2 - 0.02, 0.33, 0]} material={mats.carbon} />
       {/* mirrors */}
       <group position={[-p.width / 2 - 0.11, p.waist + 0.05, -0.35]}>
         <Box args={[0.05, 0.05, 0.18]} position={[0.04, 0, 0]} material={mats.carbon} />
@@ -224,6 +255,9 @@ function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
       <Box args={[p.width * 0.72, 0.08, 0.05]} position={[0, p.waist - 0.14, h - 0.02]} material={mats.taillight} castShadow={false} />
       {/* rear diffuser */}
       <RB args={[p.width * 0.82, 0.12, 0.3]} position={[0, 0.28, h - 0.05]} material={mats.carbon} radius={0.03} />
+      {[-0.3, -0.1, 0.1, 0.3].map((x) => (
+        <Box key={x} args={[0.04, 0.12, 0.14]} position={[x, 0.24, h + 0.08]} material={mats.dark} />
+      ))}
       {/* spoiler */}
       {p.wing === "big" ? (
         <>
@@ -239,7 +273,7 @@ function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
       )}
       {/* exhausts */}
       <Exhaust mats={mats} positions={[[-0.42, 0.3, h - 0.02], [0.42, 0.3, h - 0.02]]} nitro={nitro} />
-      <Wheels x={p.x} zf={zf} zr={zr} y={p.r} r={p.r} w={0.32} mats={mats} spin={spin} steer={steer} />
+      <Wheels x={p.x} zf={zf} zr={zr} y={p.r} r={p.r} w={0.34} mats={mats} spin={spin} steer={steer} />
     </>
   );
 }
@@ -252,10 +286,13 @@ function Wheel({ pos, r = 0.36, w = 0.3, mats, spin, steer, front = false }) {
     if (steerRef.current && steer && front) steerRef.current.rotation.y = steer.current;
   });
   const spokes = [];
+  const rimR = r * 0.72;
   const spokeN = 5;
-  const spokeL = r * 0.62;
+  const spokeL = rimR * 0.95;
   for (let i = 0; i < spokeN; i++) {
     const a = (i / spokeN) * Math.PI * 2;
+    // tapered split spokes: slim long arm + short paired arm
+    const mid = a + Math.PI / spokeN;
     spokes.push(
       <mesh
         key={i}
@@ -263,36 +300,48 @@ function Wheel({ pos, r = 0.36, w = 0.3, mats, spin, steer, front = false }) {
         position={[0, Math.cos(a) * (spokeL / 2), Math.sin(a) * (spokeL / 2)]}
         rotation={[a, 0, 0]}
       >
-        <boxGeometry args={[w * 0.45, spokeL, 0.055]} />
+        <boxGeometry args={[w * 0.34, spokeL, 0.05]} />
+      </mesh>,
+      <mesh
+        key={`${i}b`}
+        material={mats.rim}
+        position={[0, Math.cos(mid) * (spokeL * 0.35), Math.sin(mid) * (spokeL * 0.35)]}
+        rotation={[mid, 0, 0]}
+      >
+        <boxGeometry args={[w * 0.28, spokeL * 0.7, 0.045]} />
       </mesh>
     );
   }
   return (
     <group position={pos} ref={steerRef}>
       <group ref={spinRef}>
-        {/* tire */}
+        {/* low-profile tire */}
         <mesh rotation-z={Math.PI / 2} material={mats.tire} castShadow>
-          <cylinderGeometry args={[r, r, w, 32]} />
+          <cylinderGeometry args={[r, r, w, 40]} />
+        </mesh>
+        {/* tire sidewall ring */}
+        <mesh rotation-y={Math.PI / 2} material={mats.tire}>
+          <torusGeometry args={[r * 0.86, w * 0.15, 10, 32]} />
         </mesh>
         {/* rim barrel */}
         <mesh rotation-z={Math.PI / 2} material={mats.rim}>
-          <cylinderGeometry args={[r * 0.62, r * 0.62, w * 0.5, 20]} />
+          <cylinderGeometry args={[rimR, rimR, w * 0.55, 24]} />
         </mesh>
         {/* polished outer lip */}
         <mesh rotation-y={Math.PI / 2} material={mats.chrome}>
-          <torusGeometry args={[r * 0.62, w * 0.06, 10, 28]} />
+          <torusGeometry args={[rimR, w * 0.07, 10, 32]} />
         </mesh>
         {spokes}
         {/* brake disc + caliper */}
         <mesh rotation-z={Math.PI / 2} material={mats.brakeDisc}>
-          <cylinderGeometry args={[r * 0.42, r * 0.42, w * 0.42, 20]} />
+          <cylinderGeometry args={[r * 0.5, r * 0.5, w * 0.4, 24]} />
         </mesh>
-        <mesh position={[0, -r * 0.46, -w * 0.08]} material={mats.brakeCaliper}>
-          <boxGeometry args={[0.14, r * 0.3, r * 0.2]} />
+        <mesh position={[0, -r * 0.52, -w * 0.1]} material={mats.brakeCaliper}>
+          <boxGeometry args={[0.14, r * 0.34, r * 0.22]} />
         </mesh>
         {/* hub */}
         <mesh rotation-z={Math.PI / 2} material={mats.dark}>
-          <cylinderGeometry args={[r * 0.12, r * 0.12, w + 0.02, 14]} />
+          <cylinderGeometry args={[r * 0.12, r * 0.12, w + 0.02, 16]} />
         </mesh>
       </group>
     </group>

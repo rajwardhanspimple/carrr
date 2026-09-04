@@ -1,7 +1,8 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Sky, Stars, Environment, Lightformer } from "@react-three/drei";
+import { Sky, Stars } from "@react-three/drei";
 import * as THREE from "three";
+import StudioEnvironment from "./StudioEnvironment.jsx";
 import { game, ROAD_WIDTH, ROAD_HALF } from "./store.js";
 
 export const THEMES = {
@@ -168,6 +169,9 @@ export function Atmosphere({ theme }) {
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0004}
+        shadow-normalBias={0.04}
+        shadow-radius={8}
+        shadow-blurSamples={16}
         shadow-camera-left={-45}
         shadow-camera-right={45}
         shadow-camera-top={60}
@@ -175,12 +179,7 @@ export function Atmosphere({ theme }) {
         shadow-camera-near={1}
         shadow-camera-far={220}
       />
-      <Environment resolution={256} frames={1}>
-        <Lightformer intensity={t.stars ? 0.8 : 3} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[20, 20, 1]} />
-        <Lightformer intensity={1.4} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[12, 4, 1]} color={t.sunColor} />
-        <Lightformer intensity={1.4} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[12, 4, 1]} color={t.sky} />
-        <Lightformer intensity={0.6} position={[0, 1, -10]} scale={[20, 2, 1]} color="#ffffff" />
-      </Environment>
+      <StudioEnvironment intensity={1.1} />
     </>
   );
 }

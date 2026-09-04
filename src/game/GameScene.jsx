@@ -1,6 +1,6 @@
 import { useRef, useMemo, useEffect, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, Bloom, Vignette, ChromaticAberration, SMAA, Noise } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, SMAA, Noise, N8AO } from "@react-three/postprocessing";
 import * as THREE from "three";
 import CarModel from "./CarModel.jsx";
 import { Atmosphere, Road, Buildings, Trees, Lamps, Gantries, THEMES } from "./World.jsx";
@@ -494,10 +494,20 @@ function Effects() {
   });
   return (
     <EffectComposer multisampling={0}>
+      <N8AO
+        halfRes
+        quality="performance"
+        aoRadius={1.6}
+        aoSamples={12}
+        denoiseSamples={4}
+        denoiseRadius={12}
+        distanceFalloff={1}
+        intensity={3}
+      />
       <Bloom luminanceThreshold={1.0} mipmapBlur intensity={0.9} radius={0.65} />
       <ChromaticAberration ref={caRef} offset={offset} radialModulation modulationOffset={0.4} />
       <Vignette eskil={false} offset={0.22} darkness={0.7} />
-      <Noise opacity={0.035} />
+      <Noise opacity={0.03} />
       <SMAA />
     </EffectComposer>
   );
