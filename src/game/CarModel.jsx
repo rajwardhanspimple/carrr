@@ -2,6 +2,8 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import RealModel from "./RealModel.jsx";
+import { getModelConfig } from "./realModels.js";
 
 /* ------------------------------------------------------------------ */
 /*  Procedural paint detail (subtle metallic flake roughness)          */
@@ -854,5 +856,22 @@ const SHAPES = {
 export default function CarModel({ shape = "sport", color = "#e11d48", spin, steer, nitro, lightsOn = false, accent }) {
   const mats = useCarMaterials(color, { lightsOn, accent });
   const build = SHAPES[shape] || SHAPES.sport;
+  const realConfig = getModelConfig(shape);
+
+  // If a real GLB model for this car exists in src/assets/models, use it.
+  // While it loads or if it fails, show the procedural car so nothing breaks.
+  if (realConfig) {
+    return (
+      <RealModel
+        url={realConfig.url}
+        config={realConfig}
+        color={color}
+        spin={spin}
+        lightsOn={lightsOn}
+        fallback={<group>{build({ mats, spin, steer, nitro })}</group>}
+      />
+    );
+  }
+
   return <group>{build({ mats, spin, steer, nitro })}</group>;
 }

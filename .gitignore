@@ -1,0 +1,10 @@
+# Real car model assets (large binaries — keep out of git)
+/src/assets/models/*.glb
+/src/assets/models/*.gltf
+/src/assets/models/*.bin
+/src/assets/models/*.png
+/src/assets/models/*.jpg
+/src/assets/models/*.jpeg
+/src/assets/models/*.webp
+/src/assets/models/*.ktx2
+/src/assets/models/*.basis
