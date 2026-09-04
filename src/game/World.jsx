@@ -175,11 +175,11 @@ export function Atmosphere({ theme }) {
         shadow-camera-near={1}
         shadow-camera-far={220}
       />
-      <Environment resolution={128} frames={1}>
-        <Lightformer intensity={t.stars ? 0.6 : 2.5} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[20, 20, 1]} />
-        <Lightformer intensity={1} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[10, 3, 1]} color={t.sunColor} />
-        <Lightformer intensity={1} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[10, 3, 1]} color={t.sky} />
-        <Lightformer intensity={0.4} position={[0, 1, -10]} scale={[20, 2, 1]} color="#ffffff" />
+      <Environment resolution={256} frames={1}>
+        <Lightformer intensity={t.stars ? 0.8 : 3} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[20, 20, 1]} />
+        <Lightformer intensity={1.4} rotation-y={Math.PI / 2} position={[-8, 2, 0]} scale={[12, 4, 1]} color={t.sunColor} />
+        <Lightformer intensity={1.4} rotation-y={-Math.PI / 2} position={[8, 2, 0]} scale={[12, 4, 1]} color={t.sky} />
+        <Lightformer intensity={0.6} position={[0, 1, -10]} scale={[20, 2, 1]} color="#ffffff" />
       </Environment>
     </>
   );

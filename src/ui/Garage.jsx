@@ -1,6 +1,6 @@
 import { Suspense, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, Environment, Lightformer, OrbitControls } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, MeshReflectorMaterial, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import CarModel from "../game/CarModel.jsx";
 import { CARS, PAINTS } from "../game/cars.js";
@@ -23,9 +23,21 @@ function Turntable({ car, color }) {
       </group>
       <mesh rotation-x={-Math.PI / 2} position-y={0.005} receiveShadow>
         <circleGeometry args={[6.5, 64]} />
-        <meshStandardMaterial color="#0b0f19" metalness={0.8} roughness={0.35} />
+        <MeshReflectorMaterial
+          blur={[300, 90]}
+          resolution={512}
+          mixBlur={0.85}
+          mixStrength={55}
+          roughness={0.45}
+          depthScale={1.2}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color="#0b0f19"
+          metalness={0.65}
+          mirror={0.8}
+        />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position-y={0.01}>
+      <mesh rotation-x={-Math.PI / 2} position-y={0.012}>
         <ringGeometry args={[6.4, 6.6, 64]} />
         <meshBasicMaterial color="#00e5ff" toneMapped={false} />
       </mesh>
@@ -39,18 +51,22 @@ function Showroom({ car, color }) {
     <>
       <color attach="background" args={["#05060a"]} />
       <fog attach="fog" args={["#05060a", 14, 40]} />
-      <ambientLight intensity={0.35} />
-      <spotLight position={[6, 10, 6]} angle={0.5} penumbra={0.8} intensity={250} castShadow color="#ffffff" />
-      <spotLight position={[-8, 6, -4]} angle={0.6} penumbra={1} intensity={120} color="#00e5ff" />
-      <spotLight position={[8, 4, -6]} angle={0.6} penumbra={1} intensity={100} color="#a855f7" />
+      <ambientLight intensity={0.25} />
+      <hemisphereLight args={["#7dd3fc", "#0b0f19", 0.45]} />
+      {/* key / rim / fill studio lights */}
+      <spotLight position={[6, 10, 6]} angle={0.45} penumbra={0.8} intensity={320} castShadow color="#ffffff" />
+      <spotLight position={[-8, 6, -4]} angle={0.6} penumbra={1} intensity={160} color="#00e5ff" />
+      <spotLight position={[8, 4, -6]} angle={0.6} penumbra={1} intensity={140} color="#a855f7" />
+      <pointLight position={[0, 8, 4]} intensity={25} distance={25} color="#ffffff" decay={2} />
       <group scale={scale}>
         <Turntable car={car} color={color} />
       </group>
-      <ContactShadows position={[0, 0.02, 0]} opacity={0.7} scale={16} blur={2.2} far={6} />
+      <ContactShadows position={[0, 0.02, 0]} opacity={0.8} scale={16} blur={2.4} far={6} resolution={512} />
       <Environment resolution={256} frames={1}>
-        <Lightformer intensity={3} rotation-x={Math.PI / 2} position={[0, 6, 0]} scale={[12, 12, 1]} />
-        <Lightformer intensity={2} rotation-y={Math.PI / 2} position={[-6, 2, 0]} scale={[8, 3, 1]} color="#00e5ff" />
-        <Lightformer intensity={2} rotation-y={-Math.PI / 2} position={[6, 2, 0]} scale={[8, 3, 1]} color="#a855f7" />
+        <Lightformer intensity={4} rotation-x={Math.PI / 2} position={[0, 7, 0]} scale={[14, 14, 1]} />
+        <Lightformer intensity={2.5} rotation-y={Math.PI / 2} position={[-6, 2, 0]} scale={[9, 4, 1]} color="#00e5ff" />
+        <Lightformer intensity={2.5} rotation-y={-Math.PI / 2} position={[6, 2, 0]} scale={[9, 4, 1]} color="#a855f7" />
+        <Lightformer intensity={1.5} rotation-x={Math.PI / 2} position={[0, 2, 8]} scale={[10, 4, 1]} color="#ffffff" />
         <Lightformer intensity={1} position={[0, 2, -8]} scale={[12, 2, 1]} color="#ffffff" />
       </Environment>
       <OrbitControls
@@ -60,7 +76,7 @@ function Showroom({ car, color }) {
         maxPolarAngle={1.45}
         target={[0, 0.9, 0]}
       />
-      <gridHelper args={[60, 60, "#0e3a45", "#0a1a24"]} position-y={0.001} />
+      <gridHelper args={[60, 60, "#0e3a45", "#0a1a24"]} position-y={0.002} />
     </>
   );
 }

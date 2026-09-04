@@ -1,56 +1,98 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+
+/* ------------------------------------------------------------------ */
+/*  Procedural paint detail (subtle metallic flake roughness)          */
+/* ------------------------------------------------------------------ */
+function makeFlakeTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#404040";
+  g.fillRect(0, 0, 256, 256);
+  // sparse metallic flakes
+  for (let i = 0; i < 5200; i++) {
+    const v = 120 + Math.random() * 90;
+    g.fillStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.45})`;
+    const s = 1 + Math.random() * 1.8;
+    g.fillRect(Math.random() * 256, Math.random() * 256, s, s);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  return tex;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Materials                                                          */
 /* ------------------------------------------------------------------ */
 export function useCarMaterials(color, opts = {}) {
+  const flake = useMemo(makeFlakeTexture, []);
   return useMemo(() => {
     const paint = new THREE.MeshPhysicalMaterial({
       color,
-      metalness: 0.65,
-      roughness: 0.25,
+      metalness: 0.2,
+      roughness: 0.42,
+      roughnessMap: flake,
       clearcoat: 1,
-      clearcoatRoughness: 0.08,
-      envMapIntensity: 1.4,
+      clearcoatRoughness: 0.05,
+      sheen: 0.35,
+      sheenRoughness: 0.5,
+      envMapIntensity: 1.9,
     });
     const paint2 = new THREE.MeshPhysicalMaterial({
       color: opts.accent || "#0f172a",
-      metalness: 0.6,
-      roughness: 0.3,
-      clearcoat: 0.8,
+      metalness: 0.5,
+      roughness: 0.24,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.12,
+      envMapIntensity: 1.5,
     });
     const glass = new THREE.MeshPhysicalMaterial({
-      color: "#0f172a",
-      metalness: 0.9,
-      roughness: 0.05,
-      transmission: 0,
+      color: "#0d1522",
+      metalness: 0,
+      roughness: 0.06,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
       transparent: true,
-      opacity: 0.85,
-      envMapIntensity: 2,
+      opacity: 0.55,
+      envMapIntensity: 2.4,
+      side: THREE.DoubleSide,
     });
-    const dark = new THREE.MeshStandardMaterial({ color: "#0b0f19", metalness: 0.4, roughness: 0.6 });
-    const chrome = new THREE.MeshStandardMaterial({ color: "#e5e7eb", metalness: 1, roughness: 0.15 });
-    const tire = new THREE.MeshStandardMaterial({ color: "#0a0a0a", roughness: 0.95 });
-    const rim = new THREE.MeshStandardMaterial({ color: "#cbd5e1", metalness: 0.9, roughness: 0.25 });
+    const dark = new THREE.MeshStandardMaterial({ color: "#0b0f19", metalness: 0.45, roughness: 0.52 });
+    const carbon = new THREE.MeshStandardMaterial({
+      color: "#131820",
+      metalness: 0.55,
+      roughness: 0.35,
+    });
+    const chrome = new THREE.MeshStandardMaterial({ color: "#e5e7eb", metalness: 1, roughness: 0.12, envMapIntensity: 1.6 });
+    const tire = new THREE.MeshStandardMaterial({ color: "#0a0a0a", roughness: 0.92 });
+    const rim = new THREE.MeshStandardMaterial({ color: "#cbd5e1", metalness: 1, roughness: 0.2, envMapIntensity: 1.4 });
+    const brakeDisc = new THREE.MeshStandardMaterial({ color: "#6b7280", metalness: 0.95, roughness: 0.38 });
+    const brakeCaliper = new THREE.MeshStandardMaterial({ color: "#dc2626", metalness: 0.7, roughness: 0.3, emissive: "#7f1d1d", emissiveIntensity: 0.35 });
     const headlight = new THREE.MeshStandardMaterial({
       color: "#ffffff",
       emissive: "#fff7d6",
       emissiveIntensity: opts.lightsOn ? 4 : 1.2,
+      roughness: 0.2,
+      metalness: 0.2,
     });
     const taillight = new THREE.MeshStandardMaterial({
       color: "#7f1d1d",
       emissive: "#ff1a1a",
       emissiveIntensity: opts.lightsOn ? 3.5 : 1.5,
+      metalness: 0.2,
+      roughness: 0.3,
     });
     const flame = new THREE.MeshBasicMaterial({ color: "#60a5fa", transparent: true, opacity: 0.9 });
     const flameCore = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.9 });
     const yellow = new THREE.MeshStandardMaterial({ color: "#facc15", emissive: "#facc15", emissiveIntensity: 0.6 });
     const red = new THREE.MeshStandardMaterial({ color: "#ef4444", emissive: "#ef4444", emissiveIntensity: 2 });
     const blue = new THREE.MeshStandardMaterial({ color: "#3b82f6", emissive: "#3b82f6", emissiveIntensity: 2 });
-    return { paint, paint2, glass, dark, chrome, tire, rim, headlight, taillight, flame, flameCore, yellow, red, blue };
-  }, [color, opts.accent, opts.lightsOn]);
+    return { paint, paint2, glass, dark, carbon, chrome, tire, rim, brakeDisc, brakeCaliper, headlight, taillight, flame, flameCore, yellow, red, blue };
+  }, [color, opts.accent, opts.lightsOn, flake]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -64,6 +106,13 @@ function Box({ args, position, rotation, material, castShadow = true }) {
   );
 }
 
+/* Rounded body panel – gives cars a molded, AAA-style shell */
+function RB({ args, position, rotation, material, radius = 0.1, smoothness = 4, castShadow = true }) {
+  return (
+    <RoundedBox args={args} position={position} rotation={rotation} radius={radius} smoothness={smoothness} material={material} castShadow={castShadow} receiveShadow />
+  );
+}
+
 function Wheel({ pos, r = 0.36, w = 0.3, mats, spin, steer, front = false }) {
   const spinRef = useRef();
   const steerRef = useRef();
@@ -71,17 +120,48 @@ function Wheel({ pos, r = 0.36, w = 0.3, mats, spin, steer, front = false }) {
     if (spinRef.current && spin) spinRef.current.rotation.x = spin.current;
     if (steerRef.current && steer && front) steerRef.current.rotation.y = steer.current;
   });
+  const spokes = [];
+  const spokeN = 5;
+  const spokeL = r * 0.62;
+  for (let i = 0; i < spokeN; i++) {
+    const a = (i / spokeN) * Math.PI * 2;
+    spokes.push(
+      <mesh
+        key={i}
+        material={mats.rim}
+        position={[0, Math.cos(a) * (spokeL / 2), Math.sin(a) * (spokeL / 2)]}
+        rotation={[a, 0, 0]}
+      >
+        <boxGeometry args={[w * 0.45, spokeL, 0.055]} />
+      </mesh>
+    );
+  }
   return (
     <group position={pos} ref={steerRef}>
       <group ref={spinRef}>
+        {/* tire */}
         <mesh rotation-z={Math.PI / 2} material={mats.tire} castShadow>
-          <cylinderGeometry args={[r, r, w, 24]} />
+          <cylinderGeometry args={[r, r, w, 32]} />
         </mesh>
+        {/* rim barrel */}
         <mesh rotation-z={Math.PI / 2} material={mats.rim}>
-          <cylinderGeometry args={[r * 0.62, r * 0.62, w + 0.02, 8]} />
+          <cylinderGeometry args={[r * 0.62, r * 0.62, w * 0.5, 20]} />
         </mesh>
+        {/* polished outer lip */}
+        <mesh rotation-y={Math.PI / 2} material={mats.chrome}>
+          <torusGeometry args={[r * 0.62, w * 0.06, 10, 28]} />
+        </mesh>
+        {spokes}
+        {/* brake disc + caliper */}
+        <mesh rotation-z={Math.PI / 2} material={mats.brakeDisc}>
+          <cylinderGeometry args={[r * 0.42, r * 0.42, w * 0.42, 20]} />
+        </mesh>
+        <mesh position={[0, -r * 0.46, -w * 0.08]} material={mats.brakeCaliper}>
+          <boxGeometry args={[0.14, r * 0.3, r * 0.2]} />
+        </mesh>
+        {/* hub */}
         <mesh rotation-z={Math.PI / 2} material={mats.dark}>
-          <cylinderGeometry args={[r * 0.25, r * 0.25, w + 0.04, 8]} />
+          <cylinderGeometry args={[r * 0.12, r * 0.12, w + 0.02, 14]} />
         </mesh>
       </group>
     </group>
@@ -122,7 +202,7 @@ function Exhaust({ mats, positions, nitro }) {
     <>
       {positions.map((p, i) => (
         <mesh key={i} position={p} rotation-x={Math.PI / 2} material={mats.chrome}>
-          <cylinderGeometry args={[0.08, 0.08, 0.3, 10]} />
+          <cylinderGeometry args={[0.08, 0.08, 0.3, 16]} />
         </mesh>
       ))}
       <group ref={ref}>
@@ -144,9 +224,9 @@ function Exhaust({ mats, positions, nitro }) {
 function Spoiler({ mats, y, z, w = 1.8, tall = 0.35 }) {
   return (
     <>
-      <Box args={[0.08, tall, 0.25]} position={[-w / 2 + 0.15, y + tall / 2, z]} material={mats.dark} />
-      <Box args={[0.08, tall, 0.25]} position={[w / 2 - 0.15, y + tall / 2, z]} material={mats.dark} />
-      <Box args={[w, 0.06, 0.45]} position={[0, y + tall, z]} material={mats.paint} />
+      <Box args={[0.08, tall, 0.25]} position={[-w / 2 + 0.15, y + tall / 2, z]} material={mats.carbon} />
+      <Box args={[0.08, tall, 0.25]} position={[w / 2 - 0.15, y + tall / 2, z]} material={mats.carbon} />
+      <RB args={[w, 0.07, 0.5]} position={[0, y + tall, z]} material={mats.paint} radius={0.03} />
     </>
   );
 }
@@ -175,30 +255,30 @@ function SportShape({ mats, spin, steer, nitro, variant = "sport" }) {
   const hyper = variant === "hyper";
   return (
     <>
-      {/* chassis */}
-      <Box args={[1.9, 0.45, 4.2]} position={[0, 0.5, 0]} material={mats.paint} />
+      {/* molded chassis */}
+      <RB args={[1.9, 0.48, 4.2]} position={[0, 0.5, 0]} material={mats.paint} radius={0.14} />
       {/* sloped hood */}
-      <Box args={[1.85, 0.3, 1.6]} position={[0, 0.72, -1.25]} rotation={[0.12, 0, 0]} material={mats.paint} />
+      <RB args={[1.85, 0.3, 1.6]} position={[0, 0.72, -1.25]} rotation={[0.12, 0, 0]} material={mats.paint} radius={0.1} />
       {/* rear deck */}
-      <Box args={[1.85, 0.32, 1.1]} position={[0, 0.78, 1.55]} material={mats.paint} />
+      <RB args={[1.85, 0.32, 1.1]} position={[0, 0.78, 1.55]} material={mats.paint} radius={0.1} />
       {/* cabin */}
-      <Box args={[1.6, 0.48, 1.9]} position={[0, 1.0, 0.15]} material={mats.glass} />
-      <Box args={[1.5, 0.06, 1.2]} position={[0, 1.26, 0.2]} material={mats.paint} />
+      <RB args={[1.6, 0.48, 1.9]} position={[0, 1.0, 0.15]} material={mats.glass} radius={0.16} />
+      <RB args={[1.5, 0.06, 1.2]} position={[0, 1.26, 0.2]} material={mats.paint} radius={0.025} />
       {/* windshield slope */}
-      <Box args={[1.62, 0.5, 0.1]} position={[0, 0.98, -0.85]} rotation={[0.45, 0, 0]} material={mats.glass} />
+      <RB args={[1.62, 0.5, 0.1]} position={[0, 0.98, -0.85]} rotation={[0.45, 0, 0]} material={mats.glass} radius={0.03} />
       {/* side skirts */}
-      <Box args={[0.1, 0.2, 3.2]} position={[-0.98, 0.35, 0]} material={mats.dark} />
-      <Box args={[0.1, 0.2, 3.2]} position={[0.98, 0.35, 0]} material={mats.dark} />
-      {/* bumpers */}
-      <Box args={[1.9, 0.25, 0.25]} position={[0, 0.36, -2.15]} material={mats.dark} />
-      <Box args={[1.9, 0.25, 0.25]} position={[0, 0.36, 2.15]} material={mats.dark} />
+      <Box args={[0.12, 0.2, 3.2]} position={[-0.98, 0.35, 0]} material={mats.carbon} />
+      <Box args={[0.12, 0.2, 3.2]} position={[0.98, 0.35, 0]} material={mats.carbon} />
+      {/* splitter + diffuser */}
+      <Box args={[1.9, 0.12, 0.3]} position={[0, 0.36, -2.15]} material={mats.carbon} />
+      <Box args={[1.9, 0.12, 0.3]} position={[0, 0.36, 2.15]} material={mats.carbon} />
       {/* grille */}
       <Box args={[1.0, 0.18, 0.06]} position={[0, 0.55, -2.22]} material={mats.dark} />
       <Lights mats={mats} x={0.68} y={0.62} zf={-2.12} zr={2.14} size={[0.4, 0.12, 0.08]} />
       {hyper ? (
         <>
           <Spoiler mats={mats} y={0.95} z={1.95} w={1.9} tall={0.45} />
-          <Box args={[0.6, 0.15, 1.0]} position={[0, 1.02, 1.1]} material={mats.dark} />
+          <Box args={[0.6, 0.15, 1.0]} position={[0, 1.02, 1.1]} material={mats.carbon} />
         </>
       ) : (
         <Spoiler mats={mats} y={0.95} z={1.95} w={1.7} tall={0.22} />
@@ -212,17 +292,17 @@ function SportShape({ mats, spin, steer, nitro, variant = "sport" }) {
 function MuscleShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[2.0, 0.55, 4.6]} position={[0, 0.58, 0]} material={mats.paint} />
-      <Box args={[1.95, 0.25, 1.8]} position={[0, 0.95, -1.3]} material={mats.paint} />
-      <Box args={[0.6, 0.15, 0.9]} position={[0, 1.12, -1.4]} material={mats.dark} />
-      <Box args={[1.95, 0.3, 1.2]} position={[0, 0.95, 1.6]} material={mats.paint} />
-      <Box args={[1.7, 0.55, 1.9]} position={[0, 1.3, 0.2]} material={mats.glass} />
-      <Box args={[1.6, 0.06, 1.3]} position={[0, 1.6, 0.25]} material={mats.paint} />
+      <RB args={[2.0, 0.58, 4.6]} position={[0, 0.58, 0]} material={mats.paint} radius={0.15} />
+      <RB args={[1.95, 0.25, 1.8]} position={[0, 0.95, -1.3]} material={mats.paint} radius={0.08} />
+      <Box args={[0.6, 0.15, 0.9]} position={[0, 1.12, -1.4]} material={mats.carbon} />
+      <RB args={[1.95, 0.3, 1.2]} position={[0, 0.95, 1.6]} material={mats.paint} radius={0.09} />
+      <RB args={[1.7, 0.55, 1.9]} position={[0, 1.3, 0.2]} material={mats.glass} radius={0.16} />
+      <RB args={[1.6, 0.06, 1.3]} position={[0, 1.6, 0.25]} material={mats.paint} radius={0.025} />
       {/* racing stripes */}
       <Box args={[0.25, 0.02, 4.6]} position={[-0.3, 1.09, -0.05]} material={mats.paint2} castShadow={false} />
       <Box args={[0.25, 0.02, 4.6]} position={[0.3, 1.09, -0.05]} material={mats.paint2} castShadow={false} />
-      <Box args={[2.0, 0.28, 0.3]} position={[0, 0.4, -2.35]} material={mats.chrome} />
-      <Box args={[2.0, 0.28, 0.3]} position={[0, 0.4, 2.35]} material={mats.chrome} />
+      <RB args={[2.0, 0.28, 0.3]} position={[0, 0.4, -2.35]} material={mats.chrome} radius={0.05} />
+      <RB args={[2.0, 0.28, 0.3]} position={[0, 0.4, 2.35]} material={mats.chrome} radius={0.05} />
       <Box args={[1.3, 0.25, 0.06]} position={[0, 0.7, -2.32]} material={mats.dark} />
       <Lights mats={mats} x={0.75} y={0.72} zf={-2.32} zr={2.32} size={[0.3, 0.2, 0.08]} />
       <Spoiler mats={mats} y={1.1} z={2.1} w={1.9} tall={0.15} />
@@ -236,38 +316,38 @@ function F1Shape({ mats, spin, steer, nitro }) {
   return (
     <>
       {/* monocoque */}
-      <Box args={[0.8, 0.4, 3.6]} position={[0, 0.45, 0.2]} material={mats.paint} />
+      <RB args={[0.8, 0.4, 3.6]} position={[0, 0.45, 0.2]} material={mats.paint} radius={0.12} />
       {/* nose */}
-      <Box args={[0.45, 0.25, 1.6]} position={[0, 0.4, -2.0]} rotation={[-0.05, 0, 0]} material={mats.paint} />
+      <RB args={[0.45, 0.25, 1.6]} position={[0, 0.4, -2.0]} rotation={[-0.05, 0, 0]} material={mats.paint} radius={0.08} />
       {/* sidepods */}
-      <Box args={[0.6, 0.35, 1.8]} position={[-0.7, 0.42, 0.5]} material={mats.paint} />
-      <Box args={[0.6, 0.35, 1.8]} position={[0.7, 0.42, 0.5]} material={mats.paint} />
+      <RB args={[0.6, 0.35, 1.8]} position={[-0.7, 0.42, 0.5]} material={mats.paint} radius={0.12} />
+      <RB args={[0.6, 0.35, 1.8]} position={[0.7, 0.42, 0.5]} material={mats.paint} radius={0.12} />
       {/* cockpit + halo */}
-      <Box args={[0.6, 0.3, 0.7]} position={[0, 0.75, -0.2]} material={mats.dark} />
-      <mesh position={[0, 0.85, -0.1]} rotation-x={Math.PI / 2} material={mats.dark}>
+      <RB args={[0.6, 0.3, 0.7]} position={[0, 0.75, -0.2]} material={mats.carbon} radius={0.09} />
+      <mesh position={[0, 0.85, -0.1]} rotation-x={Math.PI / 2} material={mats.carbon}>
         <torusGeometry args={[0.4, 0.04, 8, 16, Math.PI]} />
       </mesh>
       {/* airbox */}
-      <Box args={[0.4, 0.5, 0.9]} position={[0, 0.95, 0.55]} material={mats.paint} />
-      <Box args={[0.35, 0.3, 0.12]} position={[0, 1.15, 0.1]} material={mats.dark} />
+      <RB args={[0.4, 0.5, 0.9]} position={[0, 0.95, 0.55]} material={mats.paint} radius={0.1} />
+      <Box args={[0.35, 0.3, 0.12]} position={[0, 1.15, 0.1]} material={mats.carbon} />
       {/* engine cover */}
-      <Box args={[0.5, 0.35, 1.3]} position={[0, 0.65, 1.3]} rotation={[0.15, 0, 0]} material={mats.paint} />
+      <RB args={[0.5, 0.35, 1.3]} position={[0, 0.65, 1.3]} rotation={[0.15, 0, 0]} material={mats.paint} radius={0.12} />
       {/* front wing */}
-      <Box args={[2.0, 0.05, 0.6]} position={[0, 0.2, -2.6]} material={mats.paint} />
-      <Box args={[0.15, 0.3, 0.6]} position={[-0.95, 0.35, -2.6]} material={mats.paint2} />
-      <Box args={[0.15, 0.3, 0.6]} position={[0.95, 0.35, -2.6]} material={mats.paint2} />
+      <RB args={[2.0, 0.05, 0.6]} position={[0, 0.2, -2.6]} material={mats.paint} radius={0.02} />
+      <RB args={[0.15, 0.3, 0.6]} position={[-0.95, 0.35, -2.6]} material={mats.paint2} radius={0.04} />
+      <RB args={[0.15, 0.3, 0.6]} position={[0.95, 0.35, -2.6]} material={mats.paint2} radius={0.04} />
       {/* rear wing */}
-      <Box args={[1.9, 0.06, 0.5]} position={[0, 1.05, 2.0]} material={mats.paint} />
-      <Box args={[1.9, 0.06, 0.35]} position={[0, 0.85, 2.05]} material={mats.paint2} />
-      <Box args={[0.06, 0.6, 0.5]} position={[-0.92, 0.75, 2.0]} material={mats.dark} />
-      <Box args={[0.06, 0.6, 0.5]} position={[0.92, 0.75, 2.0]} material={mats.dark} />
+      <RB args={[1.9, 0.06, 0.5]} position={[0, 1.05, 2.0]} material={mats.paint} radius={0.02} />
+      <RB args={[1.9, 0.06, 0.35]} position={[0, 0.85, 2.05]} material={mats.paint2} radius={0.02} />
+      <Box args={[0.06, 0.6, 0.5]} position={[-0.92, 0.75, 2.0]} material={mats.carbon} />
+      <Box args={[0.06, 0.6, 0.5]} position={[0.92, 0.75, 2.0]} material={mats.carbon} />
       <Box args={[0.2, 0.2, 0.1]} position={[0, 0.5, 2.3]} material={mats.taillight} />
       <Exhaust mats={mats} positions={[[0, 0.55, 2.05]]} nitro={nitro} />
       <Wheels x={0.85} zf={-1.55} zr={1.35} y={0.38} r={0.38} w={0.42} mats={mats} spin={spin} steer={steer} />
       {/* suspension arms */}
       {[-1.55, 1.35].map((z) =>
         [-1, 1].map((s) => (
-          <Box key={z + "" + s} args={[0.6, 0.04, 0.12]} position={[s * 0.5, 0.45, z]} material={mats.dark} />
+          <Box key={z + "" + s} args={[0.6, 0.04, 0.12]} position={[s * 0.5, 0.45, z]} material={mats.carbon} />
         ))
       )}
     </>
@@ -277,20 +357,20 @@ function F1Shape({ mats, spin, steer, nitro }) {
 function RallyShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[1.9, 0.6, 4.1]} position={[0, 0.65, 0]} material={mats.paint} />
-      <Box args={[1.85, 0.25, 1.4]} position={[0, 1.05, -1.2]} rotation={[0.08, 0, 0]} material={mats.paint} />
-      <Box args={[1.7, 0.6, 2.2]} position={[0, 1.25, 0.3]} material={mats.glass} />
-      <Box args={[1.65, 0.06, 1.9]} position={[0, 1.58, 0.3]} material={mats.paint} />
+      <RB args={[1.9, 0.6, 4.1]} position={[0, 0.65, 0]} material={mats.paint} radius={0.16} />
+      <RB args={[1.85, 0.25, 1.4]} position={[0, 1.05, -1.2]} rotation={[0.08, 0, 0]} material={mats.paint} radius={0.08} />
+      <RB args={[1.7, 0.6, 2.2]} position={[0, 1.25, 0.3]} material={mats.glass} radius={0.18} />
+      <RB args={[1.65, 0.06, 1.9]} position={[0, 1.58, 0.3]} material={mats.paint} radius={0.025} />
       {/* rally livery stripe */}
-      <Box args={[1.92, 0.15, 1.5]} position={[0, 0.65, 0.4]} material={mats.paint2} castShadow={false} />
+      <RB args={[1.92, 0.15, 1.5]} position={[0, 0.65, 0.4]} material={mats.paint2} radius={0.05} castShadow={false} />
       {/* roof scoop & lights pod */}
-      <Box args={[0.5, 0.12, 0.5]} position={[0, 1.66, 0.0]} material={mats.dark} />
-      <Box args={[1.2, 0.18, 0.15]} position={[0, 1.05, -2.0]} material={mats.dark} />
+      <Box args={[0.5, 0.12, 0.5]} position={[0, 1.66, 0.0]} material={mats.carbon} />
+      <Box args={[1.2, 0.18, 0.15]} position={[0, 1.05, -2.0]} material={mats.carbon} />
       {[-0.4, -0.13, 0.13, 0.4].map((x) => (
         <Box key={x} args={[0.18, 0.12, 0.06]} position={[x, 1.05, -2.09]} material={mats.headlight} castShadow={false} />
       ))}
-      <Box args={[1.9, 0.3, 0.3]} position={[0, 0.4, -2.1]} material={mats.dark} />
-      <Box args={[1.9, 0.3, 0.3]} position={[0, 0.4, 2.1]} material={mats.dark} />
+      <Box args={[1.9, 0.3, 0.3]} position={[0, 0.4, -2.1]} material={mats.carbon} />
+      <Box args={[1.9, 0.3, 0.3]} position={[0, 0.4, 2.1]} material={mats.carbon} />
       <Lights mats={mats} x={0.68} y={0.78} zf={-2.08} zr={2.08} size={[0.36, 0.16, 0.08]} />
       <Spoiler mats={mats} y={1.2} z={1.85} w={1.8} tall={0.4} />
       {/* mud flaps */}
@@ -305,20 +385,20 @@ function RallyShape({ mats, spin, steer, nitro }) {
 function SuvShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[2.1, 0.7, 4.6]} position={[0, 0.85, 0]} material={mats.paint} />
-      <Box args={[2.0, 0.2, 1.3]} position={[0, 1.3, -1.6]} material={mats.paint} />
-      <Box args={[1.9, 0.75, 3.0]} position={[0, 1.55, 0.3]} material={mats.glass} />
-      <Box args={[1.95, 0.08, 3.1]} position={[0, 1.95, 0.3]} material={mats.paint} />
+      <RB args={[2.1, 0.72, 4.6]} position={[0, 0.85, 0]} material={mats.paint} radius={0.18} />
+      <RB args={[2.0, 0.2, 1.3]} position={[0, 1.3, -1.6]} material={mats.paint} radius={0.07} />
+      <RB args={[1.9, 0.75, 3.0]} position={[0, 1.55, 0.3]} material={mats.glass} radius={0.16} />
+      <RB args={[1.95, 0.08, 3.1]} position={[0, 1.95, 0.3]} material={mats.paint} radius={0.03} />
       {/* roof rails */}
-      <Box args={[0.08, 0.1, 2.6]} position={[-0.8, 2.03, 0.3]} material={mats.dark} />
-      <Box args={[0.08, 0.1, 2.6]} position={[0.8, 2.03, 0.3]} material={mats.dark} />
+      <Box args={[0.08, 0.1, 2.6]} position={[-0.8, 2.03, 0.3]} material={mats.carbon} />
+      <Box args={[0.08, 0.1, 2.6]} position={[0.8, 2.03, 0.3]} material={mats.carbon} />
       {/* pillars */}
       <Box args={[1.92, 0.75, 0.1]} position={[0, 1.55, -0.6]} material={mats.paint} />
       <Box args={[1.92, 0.75, 0.1]} position={[0, 1.55, 0.6]} material={mats.paint} />
       {/* cladding */}
-      <Box args={[2.14, 0.3, 4.62]} position={[0, 0.55, 0]} material={mats.dark} />
-      <Box args={[2.1, 0.35, 0.35]} position={[0, 0.5, -2.4]} material={mats.dark} />
-      <Box args={[2.1, 0.35, 0.35]} position={[0, 0.5, 2.4]} material={mats.dark} />
+      <Box args={[2.14, 0.3, 4.62]} position={[0, 0.55, 0]} material={mats.carbon} />
+      <RB args={[2.1, 0.35, 0.35]} position={[0, 0.5, -2.4]} material={mats.carbon} radius={0.06} />
+      <RB args={[2.1, 0.35, 0.35]} position={[0, 0.5, 2.4]} material={mats.carbon} radius={0.06} />
       <Box args={[1.2, 0.3, 0.06]} position={[0, 0.95, -2.32]} material={mats.chrome} />
       <Lights mats={mats} x={0.75} y={1.0} zf={-2.32} zr={2.32} size={[0.4, 0.22, 0.08]} />
       <Exhaust mats={mats} positions={[[0.7, 0.35, 2.4]]} nitro={nitro} />
@@ -330,23 +410,23 @@ function SuvShape({ mats, spin, steer, nitro }) {
 function PickupShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[2.1, 0.55, 5.2]} position={[0, 0.8, 0]} material={mats.paint} />
+      <RB args={[2.1, 0.6, 5.2]} position={[0, 0.8, 0]} material={mats.paint} radius={0.16} />
       {/* hood */}
-      <Box args={[2.05, 0.45, 1.8]} position={[0, 1.25, -1.7]} material={mats.paint} />
+      <RB args={[2.05, 0.45, 1.8]} position={[0, 1.25, -1.7]} material={mats.paint} radius={0.13} />
       {/* cab */}
-      <Box args={[1.9, 0.8, 1.6]} position={[0, 1.85, -0.3]} material={mats.glass} />
-      <Box args={[1.95, 0.08, 1.7]} position={[0, 2.28, -0.3]} material={mats.paint} />
+      <RB args={[1.9, 0.8, 1.6]} position={[0, 1.85, -0.3]} material={mats.glass} radius={0.16} />
+      <RB args={[1.95, 0.08, 1.7]} position={[0, 2.28, -0.3]} material={mats.paint} radius={0.03} />
       <Box args={[1.92, 0.8, 0.1]} position={[0, 1.85, 0.5]} material={mats.paint} />
       {/* bed walls */}
-      <Box args={[0.1, 0.6, 2.4]} position={[-1.0, 1.35, 1.4]} material={mats.paint} />
-      <Box args={[0.1, 0.6, 2.4]} position={[1.0, 1.35, 1.4]} material={mats.paint} />
-      <Box args={[2.1, 0.6, 0.1]} position={[0, 1.35, 2.55]} material={mats.paint} />
+      <RB args={[0.1, 0.6, 2.4]} position={[-1.0, 1.35, 1.4]} material={mats.paint} radius={0.04} />
+      <RB args={[0.1, 0.6, 2.4]} position={[1.0, 1.35, 1.4]} material={mats.paint} radius={0.04} />
+      <RB args={[2.1, 0.6, 0.1]} position={[0, 1.35, 2.55]} material={mats.paint} radius={0.04} />
       <Box args={[1.9, 0.05, 2.3]} position={[0, 1.08, 1.4]} material={mats.dark} />
       {/* cargo */}
-      <Box args={[0.8, 0.5, 0.8]} position={[-0.4, 1.35, 1.2]} material={mats.paint2} />
-      <Box args={[0.6, 0.4, 0.6]} position={[0.5, 1.3, 1.9]} material={mats.paint2} />
-      <Box args={[2.1, 0.4, 0.4]} position={[0, 0.55, -2.65]} material={mats.chrome} />
-      <Box args={[2.1, 0.35, 0.3]} position={[0, 0.55, 2.7]} material={mats.chrome} />
+      <RB args={[0.8, 0.5, 0.8]} position={[-0.4, 1.35, 1.2]} material={mats.paint2} radius={0.04} />
+      <RB args={[0.6, 0.4, 0.6]} position={[0.5, 1.3, 1.9]} material={mats.paint2} radius={0.04} />
+      <RB args={[2.1, 0.4, 0.4]} position={[0, 0.55, -2.65]} material={mats.chrome} radius={0.06} />
+      <RB args={[2.1, 0.35, 0.3]} position={[0, 0.55, 2.7]} material={mats.chrome} radius={0.05} />
       <Box args={[1.4, 0.4, 0.06]} position={[0, 1.1, -2.62]} material={mats.dark} />
       <Lights mats={mats} x={0.8} y={1.15} zf={-2.62} zr={2.62} size={[0.35, 0.3, 0.08]} />
       <Exhaust mats={mats} positions={[[0.8, 0.4, 2.7]]} nitro={nitro} />
@@ -361,28 +441,28 @@ function SedanShape({ mats, spin, steer, nitro, variant }) {
   const isElectric = variant === "electric";
   return (
     <>
-      <Box args={[1.95, 0.5, 4.6]} position={[0, 0.6, 0]} material={mats.paint} />
-      <Box args={[1.9, 0.25, 1.5]} position={[0, 0.95, -1.4]} rotation={[0.06, 0, 0]} material={mats.paint} />
-      <Box args={[1.9, 0.28, 1.1]} position={[0, 0.98, 1.65]} material={mats.paint} />
-      <Box args={[1.7, 0.55, 2.3]} position={[0, 1.22, 0.15]} material={mats.glass} />
-      <Box args={[1.65, 0.06, 1.7]} position={[0, 1.52, 0.15]} material={isPolice ? mats.paint2 : mats.paint} />
-      <Box args={[1.7, 0.5, 0.1]} position={[0, 1.2, -0.9]} rotation={[0.5, 0, 0]} material={mats.glass} />
-      <Box args={[1.7, 0.5, 0.1]} position={[0, 1.2, 1.2]} rotation={[-0.5, 0, 0]} material={mats.glass} />
+      <RB args={[1.95, 0.52, 4.6]} position={[0, 0.6, 0]} material={mats.paint} radius={0.15} />
+      <RB args={[1.9, 0.25, 1.5]} position={[0, 0.95, -1.4]} rotation={[0.06, 0, 0]} material={mats.paint} radius={0.07} />
+      <RB args={[1.9, 0.28, 1.1]} position={[0, 0.98, 1.65]} material={mats.paint} radius={0.08} />
+      <RB args={[1.7, 0.55, 2.3]} position={[0, 1.22, 0.15]} material={mats.glass} radius={0.16} />
+      <RB args={[1.65, 0.06, 1.7]} position={[0, 1.52, 0.15]} material={isPolice ? mats.paint2 : mats.paint} radius={0.025} />
+      <RB args={[1.7, 0.5, 0.1]} position={[0, 1.2, -0.9]} rotation={[0.5, 0, 0]} material={mats.glass} radius={0.03} />
+      <RB args={[1.7, 0.5, 0.1]} position={[0, 1.2, 1.2]} rotation={[-0.5, 0, 0]} material={mats.glass} radius={0.03} />
       {isPolice && (
         <>
-          <Box args={[1.96, 0.5, 1.6]} position={[0, 0.6, 0.1]} material={mats.paint2} castShadow={false} />
+          <RB args={[1.96, 0.5, 1.6]} position={[0, 0.6, 0.1]} material={mats.paint2} radius={0.12} castShadow={false} />
           <LightBar mats={mats} y={1.63} z={0.1} />
-          <Box args={[2.0, 0.35, 0.2]} position={[0, 0.5, -2.45]} material={mats.dark} />
+          <Box args={[2.0, 0.35, 0.2]} position={[0, 0.5, -2.45]} material={mats.carbon} />
         </>
       )}
       {isTaxi && (
-        <Box args={[0.7, 0.22, 0.3]} position={[0, 1.66, 0.1]} material={mats.yellow} castShadow={false} />
+        <RB args={[0.7, 0.22, 0.3]} position={[0, 1.66, 0.1]} material={mats.yellow} radius={0.06} castShadow={false} />
       )}
       {isElectric && (
         <Box args={[1.6, 0.04, 1.6]} position={[0, 1.56, 0.1]} material={mats.glass} castShadow={false} />
       )}
-      <Box args={[1.95, 0.25, 0.3]} position={[0, 0.4, -2.35]} material={mats.dark} />
-      <Box args={[1.95, 0.25, 0.3]} position={[0, 0.4, 2.35]} material={mats.dark} />
+      <RB args={[1.95, 0.25, 0.3]} position={[0, 0.4, -2.35]} material={mats.carbon} radius={0.06} />
+      <RB args={[1.95, 0.25, 0.3]} position={[0, 0.4, 2.35]} material={mats.carbon} radius={0.06} />
       {!isElectric && <Box args={[1.1, 0.2, 0.06]} position={[0, 0.7, -2.32]} material={mats.dark} />}
       <Lights mats={mats} x={0.7} y={0.75} zf={-2.32} zr={2.32} size={[0.4, 0.15, 0.08]} />
       {isElectric ? (
@@ -399,23 +479,23 @@ function SedanShape({ mats, spin, steer, nitro, variant }) {
 function ClassicShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[1.95, 0.55, 4.7]} position={[0, 0.62, 0]} material={mats.paint} />
-      <Box args={[1.8, 0.3, 1.7]} position={[0, 1.02, -1.4]} material={mats.paint} />
-      <Box args={[1.8, 0.3, 1.2]} position={[0, 1.02, 1.6]} material={mats.paint} />
-      <Box args={[1.6, 0.6, 2.0]} position={[0, 1.35, 0.1]} material={mats.glass} />
-      <Box args={[1.65, 0.08, 1.7]} position={[0, 1.68, 0.1]} material={mats.paint2} />
+      <RB args={[1.95, 0.58, 4.7]} position={[0, 0.62, 0]} material={mats.paint} radius={0.16} />
+      <RB args={[1.8, 0.3, 1.7]} position={[0, 1.02, -1.4]} material={mats.paint} radius={0.09} />
+      <RB args={[1.8, 0.3, 1.2]} position={[0, 1.02, 1.6]} material={mats.paint} radius={0.09} />
+      <RB args={[1.6, 0.6, 2.0]} position={[0, 1.35, 0.1]} material={mats.glass} radius={0.18} />
+      <RB args={[1.65, 0.08, 1.7]} position={[0, 1.68, 0.1]} material={mats.paint2} radius={0.03} />
       {/* fins */}
-      <Box args={[0.1, 0.35, 1.4]} position={[-0.9, 1.2, 1.7]} material={mats.paint} />
-      <Box args={[0.1, 0.35, 1.4]} position={[0.9, 1.2, 1.7]} material={mats.paint} />
+      <RB args={[0.1, 0.35, 1.4]} position={[-0.9, 1.2, 1.7]} material={mats.paint} radius={0.04} />
+      <RB args={[0.1, 0.35, 1.4]} position={[0.9, 1.2, 1.7]} material={mats.paint} radius={0.04} />
       {/* chrome trim */}
       <Box args={[1.97, 0.06, 4.4]} position={[0, 0.9, 0]} material={mats.chrome} castShadow={false} />
-      <Box args={[2.0, 0.3, 0.35]} position={[0, 0.42, -2.45]} material={mats.chrome} />
-      <Box args={[2.0, 0.3, 0.35]} position={[0, 0.42, 2.45]} material={mats.chrome} />
+      <RB args={[2.0, 0.3, 0.35]} position={[0, 0.42, -2.45]} material={mats.chrome} radius={0.06} />
+      <RB args={[2.0, 0.3, 0.35]} position={[0, 0.42, 2.45]} material={mats.chrome} radius={0.06} />
       <Box args={[1.3, 0.3, 0.08]} position={[0, 0.75, -2.38]} material={mats.chrome} />
       {/* round headlights */}
       {[-0.7, 0.7].map((x) => (
         <mesh key={x} position={[x, 0.8, -2.38]} rotation-x={Math.PI / 2} material={mats.headlight}>
-          <cylinderGeometry args={[0.18, 0.18, 0.1, 16]} />
+          <cylinderGeometry args={[0.18, 0.18, 0.1, 20]} />
         </mesh>
       ))}
       <Box args={[0.3, 0.15, 0.08]} position={[-0.7, 0.85, 2.38]} material={mats.taillight} castShadow={false} />
@@ -430,26 +510,26 @@ function MonsterShape({ mats, spin, steer, nitro }) {
   return (
     <>
       {/* lifted chassis */}
-      <Box args={[1.6, 0.3, 4.0]} position={[0, 1.4, 0]} material={mats.dark} />
-      <Box args={[2.0, 0.6, 4.4]} position={[0, 1.85, 0]} material={mats.paint} />
-      <Box args={[1.95, 0.4, 1.6]} position={[0, 2.3, -1.3]} material={mats.paint} />
-      <Box args={[1.8, 0.8, 1.6]} position={[0, 2.75, 0.0]} material={mats.glass} />
-      <Box args={[1.85, 0.08, 1.7]} position={[0, 3.18, 0.0]} material={mats.paint} />
-      <Box args={[1.6, 0.5, 1.6]} position={[0, 2.35, 1.4]} material={mats.paint} />
+      <Box args={[1.6, 0.3, 4.0]} position={[0, 1.4, 0]} material={mats.carbon} />
+      <RB args={[2.0, 0.62, 4.4]} position={[0, 1.85, 0]} material={mats.paint} radius={0.18} />
+      <RB args={[1.95, 0.4, 1.6]} position={[0, 2.3, -1.3]} material={mats.paint} radius={0.12} />
+      <RB args={[1.8, 0.8, 1.6]} position={[0, 2.75, 0.0]} material={mats.glass} radius={0.18} />
+      <RB args={[1.85, 0.08, 1.7]} position={[0, 3.18, 0.0]} material={mats.paint} radius={0.03} />
+      <RB args={[1.6, 0.5, 1.6]} position={[0, 2.35, 1.4]} material={mats.paint} radius={0.14} />
       {/* roof lights */}
-      <Box args={[1.4, 0.15, 0.2]} position={[0, 3.3, -0.6]} material={mats.dark} />
+      <Box args={[1.4, 0.15, 0.2]} position={[0, 3.3, -0.6]} material={mats.carbon} />
       {[-0.5, -0.17, 0.17, 0.5].map((x) => (
         <Box key={x} args={[0.22, 0.12, 0.06]} position={[x, 3.3, -0.72]} material={mats.headlight} castShadow={false} />
       ))}
       {/* skull-ish grille & bull bar */}
-      <Box args={[1.4, 0.4, 0.08]} position={[0, 2.0, -2.24]} material={mats.dark} />
+      <Box args={[1.4, 0.4, 0.08]} position={[0, 2.0, -2.24]} material={mats.carbon} />
       <Box args={[2.2, 0.12, 0.12]} position={[0, 1.6, -2.4]} material={mats.chrome} />
       <Box args={[0.12, 0.7, 0.12]} position={[-0.8, 1.9, -2.4]} material={mats.chrome} />
       <Box args={[0.12, 0.7, 0.12]} position={[0.8, 1.9, -2.4]} material={mats.chrome} />
       <Lights mats={mats} x={0.7} y={2.1} zf={-2.22} zr={2.22} size={[0.4, 0.2, 0.08]} />
       {/* axles */}
-      <Box args={[2.8, 0.15, 0.15]} position={[0, 0.85, -1.5]} material={mats.dark} />
-      <Box args={[2.8, 0.15, 0.15]} position={[0, 0.85, 1.5]} material={mats.dark} />
+      <Box args={[2.8, 0.15, 0.15]} position={[0, 0.85, -1.5]} material={mats.carbon} />
+      <Box args={[2.8, 0.15, 0.15]} position={[0, 0.85, 1.5]} material={mats.carbon} />
       <Box args={[0.15, 0.6, 0.15]} position={[-0.7, 1.1, -1.5]} material={mats.chrome} />
       <Box args={[0.15, 0.6, 0.15]} position={[0.7, 1.1, -1.5]} material={mats.chrome} />
       <Box args={[0.15, 0.6, 0.15]} position={[-0.7, 1.1, 1.5]} material={mats.chrome} />
@@ -463,18 +543,18 @@ function MonsterShape({ mats, spin, steer, nitro }) {
 function LimoShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[1.95, 0.55, 7.0]} position={[0, 0.62, 0]} material={mats.paint} />
-      <Box args={[1.9, 0.25, 1.5]} position={[0, 1.0, -2.6]} material={mats.paint} />
-      <Box args={[1.9, 0.25, 1.0]} position={[0, 1.0, 2.9]} material={mats.paint} />
-      <Box args={[1.7, 0.55, 4.6]} position={[0, 1.25, 0.1]} material={mats.glass} />
-      <Box args={[1.72, 0.06, 4.2]} position={[0, 1.55, 0.1]} material={mats.paint} />
+      <RB args={[1.95, 0.58, 7.0]} position={[0, 0.62, 0]} material={mats.paint} radius={0.16} />
+      <RB args={[1.9, 0.25, 1.5]} position={[0, 1.0, -2.6]} material={mats.paint} radius={0.07} />
+      <RB args={[1.9, 0.25, 1.0]} position={[0, 1.0, 2.9]} material={mats.paint} radius={0.07} />
+      <RB args={[1.7, 0.55, 4.6]} position={[0, 1.25, 0.1]} material={mats.glass} radius={0.16} />
+      <RB args={[1.72, 0.06, 4.2]} position={[0, 1.55, 0.1]} material={mats.paint} radius={0.025} />
       {/* pillars along the windows */}
       {[-1.6, -0.5, 0.6, 1.7].map((z) => (
         <Box key={z} args={[1.72, 0.55, 0.08]} position={[0, 1.25, z]} material={mats.paint} />
       ))}
-      <Box args={[1.97, 0.05, 6.8]} position={[0, 0.9, 0]} material={mats.chrome} castShadow={false} />
-      <Box args={[1.95, 0.25, 0.3]} position={[0, 0.4, -3.55]} material={mats.chrome} />
-      <Box args={[1.95, 0.25, 0.3]} position={[0, 0.4, 3.55]} material={mats.chrome} />
+      <RB args={[1.97, 0.05, 6.8]} position={[0, 0.9, 0]} material={mats.chrome} radius={0.02} castShadow={false} />
+      <RB args={[1.95, 0.25, 0.3]} position={[0, 0.4, -3.55]} material={mats.chrome} radius={0.05} />
+      <RB args={[1.95, 0.25, 0.3]} position={[0, 0.4, 3.55]} material={mats.chrome} radius={0.05} />
       <Box args={[1.1, 0.25, 0.06]} position={[0, 0.72, -3.52]} material={mats.chrome} />
       <Lights mats={mats} x={0.7} y={0.75} zf={-3.52} zr={3.52} size={[0.4, 0.15, 0.08]} />
       <Exhaust mats={mats} positions={[[-0.55, 0.32, 3.6], [0.55, 0.32, 3.6]]} nitro={nitro} />
@@ -486,18 +566,18 @@ function LimoShape({ mats, spin, steer, nitro }) {
 function VanShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[2.1, 1.6, 5.0]} position={[0, 1.25, 0.2]} material={mats.paint} />
+      <RB args={[2.1, 1.65, 5.0]} position={[0, 1.25, 0.2]} material={mats.paint} radius={0.16} />
       {/* sloped front */}
-      <Box args={[2.05, 0.9, 0.8]} position={[0, 0.9, -2.5]} material={mats.paint} />
-      <Box args={[1.9, 0.7, 0.12]} position={[0, 1.75, -2.5]} rotation={[0.35, 0, 0]} material={mats.glass} />
+      <RB args={[2.05, 0.9, 0.8]} position={[0, 0.9, -2.5]} material={mats.paint} radius={0.1} />
+      <RB args={[1.9, 0.7, 0.12]} position={[0, 1.75, -2.5]} rotation={[0.35, 0, 0]} material={mats.glass} radius={0.03} />
       {/* side windows front */}
-      <Box args={[2.14, 0.55, 1.1]} position={[0, 1.6, -1.6]} material={mats.glass} />
-      <Box args={[2.14, 0.1, 5.0]} position={[0, 0.55, 0.2]} material={mats.dark} />
+      <RB args={[2.14, 0.55, 1.1]} position={[0, 1.6, -1.6]} material={mats.glass} radius={0.04} />
+      <Box args={[2.14, 0.1, 5.0]} position={[0, 0.55, 0.2]} material={mats.carbon} />
       {/* rear doors line */}
-      <Box args={[0.04, 1.4, 0.05]} position={[0, 1.25, 2.72]} material={mats.dark} />
-      <Box args={[2.1, 0.3, 0.3]} position={[0, 0.45, -2.85]} material={mats.dark} />
-      <Box args={[2.1, 0.3, 0.3]} position={[0, 0.45, 2.75]} material={mats.dark} />
-      <Box args={[1.2, 0.25, 0.06]} position={[0, 0.9, -2.9]} material={mats.dark} />
+      <Box args={[0.04, 1.4, 0.05]} position={[0, 1.25, 2.72]} material={mats.carbon} />
+      <RB args={[2.1, 0.3, 0.3]} position={[0, 0.45, -2.85]} material={mats.carbon} radius={0.05} />
+      <RB args={[2.1, 0.3, 0.3]} position={[0, 0.45, 2.75]} material={mats.carbon} radius={0.05} />
+      <Box args={[1.2, 0.25, 0.06]} position={[0, 0.9, -2.9]} material={mats.carbon} />
       <Lights mats={mats} x={0.78} y={1.05} zf={-2.9} zr={2.72} size={[0.35, 0.35, 0.08]} />
       <Exhaust mats={mats} positions={[[0.7, 0.35, 2.75]]} nitro={nitro} />
       <Wheels x={1.02} zf={-1.75} zr={1.6} y={0.4} r={0.4} w={0.32} mats={mats} spin={spin} steer={steer} />
@@ -508,24 +588,24 @@ function VanShape({ mats, spin, steer, nitro }) {
 function BusShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[2.5, 2.4, 9.8]} position={[0, 1.7, 0]} material={mats.paint} />
+      <RB args={[2.5, 2.45, 9.8]} position={[0, 1.7, 0]} material={mats.paint} radius={0.22} />
       {/* window band */}
-      <Box args={[2.54, 0.9, 8.6]} position={[0, 2.3, 0.2]} material={mats.glass} />
-      <Box args={[2.2, 1.1, 0.1]} position={[0, 2.3, -4.9]} material={mats.glass} />
-      <Box args={[2.2, 0.9, 0.1]} position={[0, 2.3, 4.9]} material={mats.glass} />
+      <RB args={[2.54, 0.9, 8.6]} position={[0, 2.3, 0.2]} material={mats.glass} radius={0.05} />
+      <RB args={[2.2, 1.1, 0.1]} position={[0, 2.3, -4.9]} material={mats.glass} radius={0.04} />
+      <RB args={[2.2, 0.9, 0.1]} position={[0, 2.3, 4.9]} material={mats.glass} radius={0.04} />
       {/* pillars */}
       {[-3.4, -2.2, -1.0, 0.2, 1.4, 2.6, 3.8].map((z) => (
         <Box key={z} args={[2.56, 0.9, 0.08]} position={[0, 2.3, z]} material={mats.paint} />
       ))}
-      <Box args={[2.4, 0.1, 9.6]} position={[0, 2.95, 0]} material={mats.paint2} />
-      <Box args={[1.6, 0.3, 3.0]} position={[0, 3.1, 0.5]} material={mats.dark} />
+      <RB args={[2.4, 0.1, 9.6]} position={[0, 2.95, 0]} material={mats.paint2} radius={0.03} />
+      <Box args={[1.6, 0.3, 3.0]} position={[0, 3.1, 0.5]} material={mats.carbon} />
       {/* dark skirt & door */}
-      <Box args={[2.54, 0.4, 9.8]} position={[0, 0.7, 0]} material={mats.dark} />
-      <Box args={[0.05, 1.5, 1.0]} position={[1.26, 1.3, -3.6]} material={mats.dark} />
+      <RB args={[2.54, 0.4, 9.8]} position={[0, 0.7, 0]} material={mats.carbon} radius={0.06} />
+      <Box args={[0.05, 1.5, 1.0]} position={[1.26, 1.3, -3.6]} material={mats.carbon} />
       {/* destination sign */}
       <Box args={[1.8, 0.3, 0.06]} position={[0, 2.95, -4.92]} material={mats.yellow} castShadow={false} />
-      <Box args={[2.5, 0.35, 0.2]} position={[0, 0.55, -4.95]} material={mats.dark} />
-      <Box args={[2.5, 0.35, 0.2]} position={[0, 0.55, 4.95]} material={mats.dark} />
+      <RB args={[2.5, 0.35, 0.2]} position={[0, 0.55, -4.95]} material={mats.carbon} radius={0.05} />
+      <RB args={[2.5, 0.35, 0.2]} position={[0, 0.55, 4.95]} material={mats.carbon} radius={0.05} />
       <Lights mats={mats} x={0.9} y={1.1} zf={-4.92} zr={4.92} size={[0.45, 0.3, 0.08]} />
       <Exhaust mats={mats} positions={[[-1.0, 0.4, 4.95]]} nitro={nitro} />
       <Wheel pos={[-1.2, 0.5, -3.2]} r={0.5} w={0.36} mats={mats} spin={spin} steer={steer} front />
@@ -541,27 +621,27 @@ function BusShape({ mats, spin, steer, nitro }) {
 function GoKartShape({ mats, spin, steer, nitro }) {
   return (
     <>
-      <Box args={[1.0, 0.1, 2.0]} position={[0, 0.25, 0]} material={mats.dark} />
-      <Box args={[0.7, 0.2, 1.0]} position={[0, 0.38, -0.5]} material={mats.paint} />
+      <RB args={[1.0, 0.12, 2.0]} position={[0, 0.25, 0]} material={mats.carbon} radius={0.04} />
+      <RB args={[0.7, 0.22, 1.0]} position={[0, 0.38, -0.5]} material={mats.paint} radius={0.06} />
       {/* seat */}
-      <Box args={[0.6, 0.15, 0.6]} position={[0, 0.42, 0.4]} material={mats.paint2} />
-      <Box args={[0.6, 0.6, 0.12]} position={[0, 0.75, 0.7]} rotation={[-0.2, 0, 0]} material={mats.paint2} />
+      <RB args={[0.6, 0.15, 0.6]} position={[0, 0.42, 0.4]} material={mats.paint2} radius={0.05} />
+      <RB args={[0.6, 0.6, 0.12]} position={[0, 0.75, 0.7]} rotation={[-0.2, 0, 0]} material={mats.paint2} radius={0.04} />
       {/* driver */}
       <mesh position={[0, 0.85, 0.35]} material={mats.paint2}>
-        <sphereGeometry args={[0.2, 12, 12]} />
+        <sphereGeometry args={[0.2, 16, 16]} />
       </mesh>
-      <Box args={[0.4, 0.4, 0.3]} position={[0, 0.55, 0.4]} material={mats.paint} />
+      <RB args={[0.4, 0.4, 0.3]} position={[0, 0.55, 0.4]} material={mats.paint} radius={0.06} />
       {/* steering wheel */}
-      <mesh position={[0, 0.7, -0.1]} rotation-x={-1.1} material={mats.dark}>
+      <mesh position={[0, 0.7, -0.1]} rotation-x={-1.1} material={mats.carbon}>
         <torusGeometry args={[0.14, 0.025, 8, 16]} />
       </mesh>
       {/* bumpers */}
-      <Box args={[1.2, 0.08, 0.08]} position={[0, 0.3, -1.1]} material={mats.paint} />
-      <Box args={[1.2, 0.08, 0.08]} position={[0, 0.3, 1.1]} material={mats.paint} />
-      <Box args={[0.08, 0.08, 1.2]} position={[-0.65, 0.3, 0]} material={mats.paint} />
-      <Box args={[0.08, 0.08, 1.2]} position={[0.65, 0.3, 0]} material={mats.paint} />
+      <RB args={[1.2, 0.08, 0.08]} position={[0, 0.3, -1.1]} material={mats.paint} radius={0.03} />
+      <RB args={[1.2, 0.08, 0.08]} position={[0, 0.3, 1.1]} material={mats.paint} radius={0.03} />
+      <RB args={[0.08, 0.08, 1.2]} position={[-0.65, 0.3, 0]} material={mats.paint} radius={0.03} />
+      <RB args={[0.08, 0.08, 1.2]} position={[0.65, 0.3, 0]} material={mats.paint} radius={0.03} />
       {/* engine */}
-      <Box args={[0.35, 0.3, 0.35]} position={[0.4, 0.45, 0.6]} material={mats.chrome} />
+      <RB args={[0.35, 0.3, 0.35]} position={[0.4, 0.45, 0.6]} material={mats.chrome} radius={0.05} />
       <Box args={[0.2, 0.08, 0.08]} position={[0, 0.4, -1.05]} material={mats.headlight} castShadow={false} />
       <Exhaust mats={mats} positions={[[0.4, 0.4, 1.0]]} nitro={nitro} />
       <Wheels x={0.6} zf={-0.75} zr={0.75} y={0.22} r={0.22} w={0.22} mats={mats} spin={spin} steer={steer} />

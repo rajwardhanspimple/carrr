@@ -1,6 +1,6 @@
 import { useRef, useMemo, useEffect, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, Bloom, Vignette, ChromaticAberration } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, SMAA, Noise } from "@react-three/postprocessing";
 import * as THREE from "three";
 import CarModel from "./CarModel.jsx";
 import { Atmosphere, Road, Buildings, Trees, Lamps, Gantries, THEMES } from "./World.jsx";
@@ -496,7 +496,9 @@ function Effects() {
     <EffectComposer multisampling={0}>
       <Bloom luminanceThreshold={1.0} mipmapBlur intensity={0.9} radius={0.65} />
       <ChromaticAberration ref={caRef} offset={offset} radialModulation modulationOffset={0.4} />
-      <Vignette eskil={false} offset={0.25} darkness={0.75} />
+      <Vignette eskil={false} offset={0.22} darkness={0.7} />
+      <Noise opacity={0.035} />
+      <SMAA />
     </EffectComposer>
   );
 }
@@ -510,8 +512,8 @@ export default function GameScene({ car, color, theme, quality = "high" }) {
   return (
     <Canvas
       shadows={quality !== "low"}
-      dpr={quality === "high" ? [1, 1.75] : [1, 1.25]}
-      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+      dpr={quality === "high" ? [1, 1.9] : [1, 1.25]}
+      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
       camera={{ fov: 62, near: 0.1, far: 600, position: [0, 5, 12] }}
     >
       <Suspense fallback={null}>
