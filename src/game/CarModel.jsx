@@ -69,7 +69,7 @@ export function useCarMaterials(color, opts = {}) {
     });
     const chrome = new THREE.MeshStandardMaterial({ color: "#e5e7eb", metalness: 1, roughness: 0.12, envMapIntensity: 1.6 });
     const tire = new THREE.MeshStandardMaterial({ color: "#0a0a0a", roughness: 0.92 });
-    const rim = new THREE.MeshStandardMaterial({ color: "#cbd5e1", metalness: 1, roughness: 0.2, envMapIntensity: 1.4 });
+    const rim = new THREE.MeshStandardMaterial({ color: "#2b2e33", metalness: 1, roughness: 0.28, envMapIntensity: 1.3 });
     const brakeDisc = new THREE.MeshStandardMaterial({ color: "#6b7280", metalness: 0.95, roughness: 0.38 });
     const brakeCaliper = new THREE.MeshStandardMaterial({ color: "#dc2626", metalness: 0.7, roughness: 0.3, emissive: "#7f1d1d", emissiveIntensity: 0.35 });
     const headlight = new THREE.MeshStandardMaterial({
@@ -110,6 +110,137 @@ function Box({ args, position, rotation, material, castShadow = true }) {
 function RB({ args, position, rotation, material, radius = 0.1, smoothness = 4, castShadow = true }) {
   return (
     <RoundedBox args={args} position={position} rotation={rotation} radius={radius} smoothness={smoothness} material={material} castShadow={castShadow} receiveShadow />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sculpted coupe body (extruded smooth silhouette)                   */
+/* ------------------------------------------------------------------ */
+function makeCoupeBodyGeo(len, width, waist) {
+  const h = len / 2;
+  const s = new THREE.Shape();
+  s.moveTo(-h, 0.32);
+  s.lineTo(-h, 0.6);
+  s.quadraticCurveTo(-h + 0.06, 0.84, -h + 0.42, 0.9);
+  s.quadraticCurveTo(-0.65, waist, -0.3, waist);
+  s.quadraticCurveTo(0.3, waist - 0.04, 1.2, waist);
+  s.quadraticCurveTo(2.0, waist + 0.04, h - 0.1, waist - 0.06);
+  s.lineTo(h, waist - 0.1);
+  s.lineTo(h, 0.34);
+  s.lineTo(h - 0.14, 0.3);
+  s.lineTo(-h + 0.14, 0.3);
+  s.closePath();
+  const depth = width * 0.82;
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: 0.1,
+    bevelSize: 0.1,
+    bevelSegments: 6,
+    steps: 1,
+    curveSegments: 12,
+  });
+  geo.translate(0, 0, -(depth / 2 + 0.1));
+  geo.rotateY(-Math.PI / 2);
+  return geo;
+}
+
+function makeCoupeCanopyGeo(width, waist) {
+  const s = new THREE.Shape();
+  s.moveTo(-0.25, waist);
+  s.quadraticCurveTo(-0.15, waist + 0.22, 0.35, waist + 0.42);
+  s.quadraticCurveTo(0.85, waist + 0.46, 1.25, waist + 0.42);
+  s.quadraticCurveTo(1.78, waist + 0.24, 2.0, waist);
+  s.lineTo(1.66, waist - 0.02);
+  s.quadraticCurveTo(1.15, waist + 0.18, 0.8, waist + 0.22);
+  s.quadraticCurveTo(-0.1, waist + 0.2, -0.6, waist - 0.02);
+  s.closePath();
+  const depth = width * 0.62;
+  const geo = new THREE.ExtrudeGeometry(s, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: 0.09,
+    bevelSize: 0.09,
+    bevelSegments: 6,
+    steps: 1,
+    curveSegments: 12,
+  });
+  geo.translate(0, 0, -(depth / 2 + 0.09));
+  geo.rotateY(-Math.PI / 2);
+  return geo;
+}
+
+function RealCoupeShape({ mats, spin, steer, nitro, variant = "sport" }) {
+  const p = variant === "muscle" ? { len: 4.95, width: 2.12, waist: 1.05, r: 0.4, x: 1.02, wing: "duck" }
+    : variant === "hyper" ? { len: 4.75, width: 2.06, waist: 1.0, r: 0.37, x: 0.96, wing: "big" }
+    : { len: 4.75, width: 2.0, waist: 1.02, r: 0.38, x: 0.95, wing: "small" };
+  const bodyGeo = useMemo(() => makeCoupeBodyGeo(p.len, p.width, p.waist), [p.len, p.width, p.waist]);
+  const canopyGeo = useMemo(() => makeCoupeCanopyGeo(p.width, p.waist), [p.width, p.waist]);
+  const h = p.len / 2;
+  const zf = -(p.len / 2 - 0.9);
+  const zr = p.len / 2 - 0.9;
+
+  return (
+    <>
+      {/* sculpted painted body */}
+      <mesh geometry={bodyGeo} material={mats.paint} castShadow receiveShadow />
+      {/* glasshouse */}
+      <mesh geometry={canopyGeo} material={mats.glass} castShadow />
+      {/* roof skin */}
+      <RB args={[p.width * 0.42, 0.05, 1.05]} position={[0, p.waist + 0.44, 0.8]} material={mats.paint} radius={0.02} />
+      {/* hood scoop / power bulge */}
+      {variant === "muscle" ? (
+        <RB args={[0.8, 0.14, 1.0]} position={[0, p.waist + 0.05, -1.1]} material={mats.carbon} radius={0.05} />
+      ) : (
+        <RB args={[0.66, 0.1, 0.9]} position={[0, p.waist + 0.02, -1.35]} material={mats.carbon} radius={0.04} />
+      )}
+      {/* splitter */}
+      <RB args={[p.width * 0.9, 0.08, 0.36]} position={[0, 0.26, -h + 0.08]} material={mats.carbon} radius={0.03} />
+      {/* front grille + mesh */}
+      <RB args={[p.width * 0.66, 0.24, 0.1]} position={[0, 0.62, -h + 0.04]} material={mats.dark} radius={0.03} />
+      <mesh position={[0, 0.62, -h - 0.02]}>
+        <planeGeometry args={[p.width * 0.58, 0.18]} />
+        <meshStandardMaterial color="#05070a" roughness={0.6} metalness={0.4} />
+      </mesh>
+      {/* slim LED headlights */}
+      <Box args={[0.46, 0.07, 0.06]} position={[-p.width * 0.32, p.waist - 0.14, -h + 0.06]} material={mats.headlight} castShadow={false} />
+      <Box args={[0.46, 0.07, 0.06]} position={[p.width * 0.32, p.waist - 0.14, -h + 0.06]} material={mats.headlight} castShadow={false} />
+      {/* side intakes */}
+      <Box args={[0.08, 0.22, 0.5]} position={[-p.width / 2 + 0.02, 0.55, -1.35]} material={mats.dark} />
+      <Box args={[0.08, 0.22, 0.5]} position={[p.width / 2 - 0.02, 0.55, -1.35]} material={mats.dark} />
+      {/* rocker panels */}
+      <Box args={[0.06, 0.12, p.len * 0.62]} position={[-p.width / 2 + 0.02, 0.33, 0]} material={mats.carbon} />
+      <Box args={[0.06, 0.12, p.len * 0.62]} position={[p.width / 2 - 0.02, 0.33, 0]} material={mats.carbon} />
+      {/* mirrors */}
+      <group position={[-p.width / 2 - 0.11, p.waist + 0.05, -0.35]}>
+        <Box args={[0.05, 0.05, 0.18]} position={[0.04, 0, 0]} material={mats.carbon} />
+        <RB args={[0.2, 0.08, 0.12]} position={[0, 0.03, 0]} material={mats.paint2} radius={0.03} />
+      </group>
+      <group position={[p.width / 2 + 0.11, p.waist + 0.05, -0.35]}>
+        <Box args={[0.05, 0.05, 0.18]} position={[-0.04, 0, 0]} material={mats.carbon} />
+        <RB args={[0.2, 0.08, 0.12]} position={[0, 0.03, 0]} material={mats.paint2} radius={0.03} />
+      </group>
+      {/* full-width LED tail bar */}
+      <Box args={[p.width * 0.72, 0.08, 0.05]} position={[0, p.waist - 0.14, h - 0.02]} material={mats.taillight} castShadow={false} />
+      {/* rear diffuser */}
+      <RB args={[p.width * 0.82, 0.12, 0.3]} position={[0, 0.28, h - 0.05]} material={mats.carbon} radius={0.03} />
+      {/* spoiler */}
+      {p.wing === "big" ? (
+        <>
+          <RB args={[p.width * 0.92, 0.06, 0.42]} position={[0, p.waist + 0.18, h - 0.25]} material={mats.paint2} radius={0.02} />
+          <RB args={[0.6, 0.06, 0.3]} position={[0, p.waist + 0.38, h - 0.25]} material={mats.paint2} radius={0.02} />
+          <Box args={[0.06, 0.4, 0.2]} position={[-p.width * 0.4, p.waist + 0.16, h - 0.25]} material={mats.carbon} />
+          <Box args={[0.06, 0.4, 0.2]} position={[p.width * 0.4, p.waist + 0.16, h - 0.25]} material={mats.carbon} />
+        </>
+      ) : p.wing === "duck" ? (
+        <RB args={[p.width * 0.82, 0.14, 0.4]} position={[0, p.waist + 0.02, h - 0.15]} rotation={[0.22, 0, 0]} material={mats.paint} radius={0.04} />
+      ) : (
+        <RB args={[p.width * 0.7, 0.09, 0.3]} position={[0, p.waist + 0.02, h - 0.12]} rotation={[0.18, 0, 0]} material={mats.paint} radius={0.03} />
+      )}
+      {/* exhausts */}
+      <Exhaust mats={mats} positions={[[-0.42, 0.3, h - 0.02], [0.42, 0.3, h - 0.02]]} nitro={nitro} />
+      <Wheels x={p.x} zf={zf} zr={zr} y={p.r} r={p.r} w={0.32} mats={mats} spin={spin} steer={steer} />
+    </>
   );
 }
 
@@ -653,9 +784,9 @@ function GoKartShape({ mats, spin, steer, nitro }) {
 /*  Main export                                                        */
 /* ------------------------------------------------------------------ */
 const SHAPES = {
-  sport: (p) => <SportShape {...p} variant="sport" />,
-  hyper: (p) => <SportShape {...p} variant="hyper" />,
-  muscle: (p) => <MuscleShape {...p} />,
+  sport: (p) => <RealCoupeShape {...p} variant="sport" />,
+  hyper: (p) => <RealCoupeShape {...p} variant="hyper" />,
+  muscle: (p) => <RealCoupeShape {...p} variant="muscle" />,
   f1: (p) => <F1Shape {...p} />,
   rally: (p) => <RallyShape {...p} />,
   suv: (p) => <SuvShape {...p} />,
